@@ -1,0 +1,14 @@
+{% extends "admin/change_list.html" %}
+{% load admin_urls i18n subadmin_tags %}
+
+{% block header %}{% include "subadmin_unfold/header.html" with subadmin_page="list" %}{% endblock %}
+
+{% block nav-global-side %}
+    {% if has_add_permission and cl.model_admin.show_add_link %}
+        {% subadmin_url 'add' as add_url %}
+        {% blocktranslate with name=cl.opts.verbose_name asvar title %}Add {{ name }}{% endblocktranslate %}
+        <div class="flex flex-row items-center">
+            <a href="{% add_preserved_filters add_url is_popup to_field %}" class="addlink border border-primary-700 bg-primary-600 flex items-center h-[38px] justify-center -my-1 rounded-default w-[38px] hover:bg-primary-600/80 dark:border-primary-500" title="{{ title }}"><span class="material-symbols-outlined text-white">add</span></a>
+        </div>
+    {% endif %}
+{% endblock %}

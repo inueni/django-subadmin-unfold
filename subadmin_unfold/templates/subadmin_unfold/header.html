@@ -1,0 +1,52 @@
+{% extends "unfold/helpers/header.html" %}
+{% load admin_urls i18n subadmin_tags subadmin_unfold %}
+
+{% block welcome-msg %}
+    {% unfold_subadmin_navigation as nav %}
+    <div class="flex flex-row grow font-semibold items-center min-w-0 mr-3">
+        {% if is_nav_sidebar_enabled and not is_popup %}
+            <span class="cursor-pointer flex flex-row items-center">
+                <span class="material-symbols-outlined" x-on:click="sidebarToggle()">dock_to_right</span>
+            </span>
+            <span class="block bg-base-200 h-5 mx-3 w-px dark:bg-base-700"></span>
+        {% endif %}
+        {% if not is_popup %}
+            {% if subadmin_page == "list" %}
+                {% with back_url=nav.parent_url %}
+                    <a href="{{ back_url }}" class="block h-[18px] mr-3" title="{% translate 'Go back' %}"><span class="material-symbols-outlined">arrow_back</span></a>
+                {% endwith %}
+            {% elif subadmin_page == "history" or subadmin_page == "delete" %}
+                {% subadmin_url 'change' object.pk|admin_urlquote as back_url %}
+                <a href="{{ back_url }}" class="block h-[18px] mr-3" title="{% translate 'Go back' %}"><span class="material-symbols-outlined">arrow_back</span></a>
+            {% else %}
+                {% subadmin_url 'changelist' as back_url %}
+                <a href="{{ back_url }}" class="block h-[18px] mr-3" title="{% translate 'Go back' %}"><span class="material-symbols-outlined">arrow_back</span></a>
+            {% endif %}
+        {% endif %}
+        <h1 class="overflow-hidden leading-5 text-important flex items-center whitespace-nowrap xl:text-base">
+            <a href="{{ nav.root.url }}" class="align-middle inline-block leading-5 min-w-0 truncate tracking-tight">{{ nav.root.name|capfirst }}</a>
+            {% for item in nav.ancestors %}
+                <span class="material-symbols-outlined inline-block align-middle leading-5 mx-2 text-base-400 dark:text-base-500">chevron_right</span>
+                {% if item.has_view_permission %}
+                    <a href="{{ item.url }}" class="align-middle inline-block leading-5 min-w-0 truncate tracking-tight">{{ item.name|capfirst }}</a>
+                {% else %}
+                    <span class="align-middle inline-block leading-5 min-w-0 truncate tracking-tight">{{ item.name|capfirst }}</span>
+                {% endif %}
+            {% endfor %}
+            <span class="material-symbols-outlined inline-block align-middle leading-5 mx-2 text-base-400 dark:text-base-500">chevron_right</span>
+            {% if subadmin_page == "list" %}
+                <span class="align-middle inline-block leading-5 min-w-0 truncate tracking-tight">{{ opts.verbose_name_plural|capfirst }}</span>
+            {% else %}
+                {% subadmin_url 'changelist' as list_url %}
+                <a href="{{ list_url }}" class="align-middle inline-block leading-5 min-w-0 truncate tracking-tight">{{ opts.verbose_name_plural|capfirst }}</a>
+                <span class="material-symbols-outlined inline-block align-middle leading-5 mx-2 text-base-400 dark:text-base-500">chevron_right</span>
+                {% if subadmin_page == "history" or subadmin_page == "delete" %}
+                    {% subadmin_url 'change' object.pk|admin_urlquote as change_url %}
+                    <a href="{{ change_url }}" class="align-middle inline-block leading-5 min-w-0 truncate tracking-tight">{{ object }}</a>
+                    <span class="material-symbols-outlined inline-block align-middle leading-5 mx-2 text-base-400 dark:text-base-500">chevron_right</span>
+                {% endif %}
+                <span class="align-middle inline-block leading-5 min-w-0 truncate tracking-tight">{% if add %}{{ title }}{% elif subadmin_page == "change" %}{{ original }}{% else %}{{ title }}{% endif %}</span>
+            {% endif %}
+        </h1>
+    </div>
+{% endblock %}

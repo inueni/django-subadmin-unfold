@@ -1,0 +1,30 @@
+{% extends "admin/change_form.html" %}
+{% load admin_urls i18n subadmin_tags subadmin_unfold %}
+
+{% block header %}{% include "subadmin_unfold/header.html" with subadmin_page="change" %}{% endblock %}
+
+{% block nav-global %}{% spaceless %}
+    {% if change and not is_popup %}
+        {% for link in subadmin_links %}
+            {% include "unfold/helpers/tab_action.html" with title=link.name link=link.url icon="inventory_2" %}
+        {% endfor %}
+        {% if show_history %}
+        {% subadmin_url 'history' original.pk|admin_urlquote as history_url %}
+        {% translate 'History' as title %}
+        {% add_preserved_filters history_url as link %}
+        {% include "unfold/helpers/tab_action.html" with title=title link=link icon="history" %}
+        {% endif %}
+    {% endif %}
+{% endspaceless %}{% endblock %}
+
+{% block nav-global-side %}
+    {% if has_add_permission and adminform.model_admin.show_add_link %}
+        {% subadmin_url 'add' as add_url %}
+        {% blocktranslate with name=opts.verbose_name asvar title %}Add {{ name }}{% endblocktranslate %}
+        <div class="flex flex-row items-center">
+            <a href="{{ add_url }}" class="addlink border border-primary-700 bg-primary-600 flex items-center h-[38px] justify-center -my-1 rounded-default w-[38px] hover:bg-primary-600/80 dark:border-primary-500" title="{{ title }}"><span class="material-symbols-outlined text-white">add</span></a>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block submit_buttons_bottom %}{% unfold_subadmin_submit_row %}{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "admin/change_form.html" %}
+{% load admin_modify %}
+
+{% block nav-global %}
+    {% if change and not is_popup %}
+        {% for link in subadmin_links %}
+            {% include "unfold/helpers/tab_action.html" with title=link.name link=link.url icon="inventory_2" %}
+        {% endfor %}
+        {% change_form_object_tools %}
+    {% endif %}
+{% endblock %}

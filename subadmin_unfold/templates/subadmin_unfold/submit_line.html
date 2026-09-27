@@ -1,0 +1,35 @@
+{% extends "admin/submit_line.html" %}
+{% load admin_urls i18n subadmin_tags unfold %}
+
+{% block submit-row %}
+    {% if show_save %}
+        {% component "unfold/components/button.html" with submit=1 form=opts.model_name|add:"_form" name="_save" class="w-full lg:w-auto" %}{% translate "Save" %}{% endcomponent %}
+    {% endif %}
+    {% for action in actions_submit_line %}
+        {% component "unfold/components/button.html" with submit=1 form=opts.model_name|add:"_form" name=action.attrs.name|default:action.action_name variant="default" class="w-full lg:w-auto" attrs=action.attrs %}
+            {% if action.icon %}<span class="material-symbols-outlined">{{ action.icon }}</span>{% endif %}
+            {{ action.description }}
+        {% endcomponent %}
+    {% endfor %}
+    {% if show_save_and_continue %}
+        {% component "unfold/components/button.html" with submit=1 form=opts.model_name|add:"_form" name="_continue" variant="default" class="w-full lg:w-auto" %}{% if can_change %}{% translate "Save and continue editing" %}{% else %}{% translate "Save and view" %}{% endif %}{% endcomponent %}
+    {% endif %}
+    {% if show_save_and_add_another %}
+        {% component "unfold/components/button.html" with submit=1 form=opts.model_name|add:"_form" name="_addanother" variant="default" class="w-full lg:w-auto" %}{% translate "Save and add another" %}{% endcomponent %}
+    {% endif %}
+    {% if show_save_as_new %}
+        {% component "unfold/components/button.html" with submit=1 form=opts.model_name|add:"_form" name="_saveasnew" variant="default" class="w-full lg:w-auto" %}{% translate "Save as new" %}{% endcomponent %}
+    {% endif %}
+    <div class="flex flex-col gap-3 mr-auto w-full lg:flex-row lg:w-auto">
+        {% if show_close or adminform.model_admin.change_form_show_cancel_button %}
+            {% subadmin_url 'changelist' as changelist_url %}
+            {% add_preserved_filters changelist_url as link %}
+            {% component "unfold/components/button.html" with href=link variant="default" class="w-full lg:w-auto" %}{% translate "Close" %}{% endcomponent %}
+        {% endif %}
+        {% if show_delete_link and original %}
+            {% subadmin_url 'delete' original.pk|admin_urlquote as delete_url %}
+            {% add_preserved_filters delete_url as link %}
+            {% component "unfold/components/button.html" with href=link variant="danger" class="mr-auto w-full lg:w-auto" %}{% translate "Delete" %} {{ opts.verbose_name }}{% endcomponent %}
+        {% endif %}
+    </div>
+{% endblock %}
