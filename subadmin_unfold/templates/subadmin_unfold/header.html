@@ -35,10 +35,10 @@
             {% endfor %}
             <span class="material-symbols-outlined inline-block align-middle leading-5 mx-2 text-base-400 dark:text-base-500">chevron_right</span>
             {% if subadmin_page == "list" %}
-                <span class="align-middle inline-block leading-5 min-w-0 truncate tracking-tight">{{ opts.verbose_name_plural|capfirst }}</span>
+                <span class="align-middle inline-block leading-5 min-w-0 truncate tracking-tight">{{ subadmin_label|capfirst }}</span>
             {% else %}
                 {% subadmin_url 'changelist' as list_url %}
-                <a href="{{ list_url }}" class="align-middle inline-block leading-5 min-w-0 truncate tracking-tight">{{ opts.verbose_name_plural|capfirst }}</a>
+                <a href="{{ list_url }}" class="align-middle inline-block leading-5 min-w-0 truncate tracking-tight">{{ subadmin_label|capfirst }}</a>
                 <span class="material-symbols-outlined inline-block align-middle leading-5 mx-2 text-base-400 dark:text-base-500">chevron_right</span>
                 {% if subadmin_page == "history" or subadmin_page == "delete" %}
                     {% subadmin_url 'change' object.pk|admin_urlquote as change_url %}

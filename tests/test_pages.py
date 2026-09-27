@@ -1,3 +1,6 @@
+from unittest.mock import patch
+
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -72,6 +75,21 @@ class UnfoldNestedPagesTests(TestCase):
         self.assertContains(grandchild_list, self.child_url("change", self.child.pk))
         self.assertContains(grandchild_list, "First parent")
         self.assertContains(grandchild_list, "First child")
+
+    def test_custom_subadmin_label_in_links_and_breadcrumbs(self):
+        child_admin = admin.site._registry[Parent].subadmin_instances[0]
+        with patch.object(child_admin, "get_subadmin_label", return_value="Members"):
+            parent_change = self.client.get(
+                reverse("admin:testapp_parent_change", args=[self.parent.pk])
+            )
+            self.assertContains(parent_change, "Members")
+
+            for url in (
+                self.child_url("changelist"),
+                self.grandchild_url("changelist"),
+            ):
+                with self.subTest(url=url):
+                    self.assertContains(self.client.get(url), "Members")
 
     def test_nested_creation_and_scope(self):
         response = self.client.get(self.child_url("changelist"))
