@@ -1,6 +1,8 @@
 import re
 from functools import update_wrapper
 
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.http import Http404
 from django.urls import path, re_path
 from subadmin import RootSubAdminMixin, SubAdminMixin
@@ -8,7 +10,31 @@ from unfold.admin import ModelAdmin
 from unfold.enums import ActionVariant
 
 
-class UnfoldSubAdmin(SubAdminMixin, ModelAdmin):
+class UnfoldSubAdminMixin:
+    subadmin_icon = None
+
+    def get_subadmin_icon(self):
+        if self.subadmin_icon is not None:
+            return self.subadmin_icon
+        return getattr(settings, "SUBADMIN_UNFOLD_DEFAULT_ICON", "view_list")
+
+    def get_subadmin_instances(self):
+        classes = []
+        for entry in self.subadmins or ():
+            if isinstance(entry, dict):
+                if not entry.get("title") or not isinstance(
+                    entry.get("items"), (list, tuple)
+                ):
+                    raise ImproperlyConfigured(
+                        "A subadmin group needs a title and a list of items"
+                    )
+                classes.extend(entry["items"])
+            else:
+                classes.append(entry)
+        return [admin_class(self.model, self) for admin_class in classes]
+
+
+class UnfoldSubAdmin(UnfoldSubAdminMixin, SubAdminMixin, ModelAdmin):
     change_list_template = "subadmin_unfold/change_list.html"
     change_form_template = "subadmin_unfold/change_form.html"
     delete_confirmation_template = "subadmin_unfold/delete_confirmation.html"
@@ -118,7 +144,7 @@ class UnfoldSubAdmin(SubAdminMixin, ModelAdmin):
         return navigation
 
 
-class UnfoldRootSubAdmin(RootSubAdminMixin, ModelAdmin):
+class UnfoldRootSubAdmin(UnfoldSubAdminMixin, RootSubAdminMixin, ModelAdmin):
     change_form_template = "subadmin_unfold/parent_change_form.html"
 
     def get_urls(self):

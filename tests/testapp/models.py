@@ -28,3 +28,25 @@ class Grandchild(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Note(models.Model):
+    parent = models.ForeignKey(Parent, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        verbose_name_plural = "Notes"
+
+    def __str__(self):
+        return self.name
+
+
+class Document(models.Model):
+    parent = models.ForeignKey(Parent, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        verbose_name_plural = "Documents"
+
+    def __str__(self):
+        return self.name

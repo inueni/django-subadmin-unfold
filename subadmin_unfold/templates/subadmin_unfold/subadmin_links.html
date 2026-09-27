@@ -1,0 +1,3 @@
+{% for item in navigation %}
+    {% include "unfold/helpers/tab_action.html" with action=item title=item.title link=item.path %}
+{% endfor %}

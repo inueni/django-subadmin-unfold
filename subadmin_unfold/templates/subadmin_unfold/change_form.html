@@ -5,9 +5,7 @@
 
 {% block nav-global %}{% spaceless %}
     {% if change and not is_popup %}
-        {% for link in subadmin_links %}
-            {% include "unfold/helpers/tab_action.html" with title=link.name link=link.url icon="inventory_2" %}
-        {% endfor %}
+        {% unfold_subadmin_links %}
         {% if show_history %}
         {% subadmin_url 'history' original.pk|admin_urlquote as history_url %}
         {% translate 'History' as title %}

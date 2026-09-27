@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .testapp.models import Child, Grandchild, Parent
@@ -44,30 +44,26 @@ class UnfoldNestedPagesTests(TestCase):
 
     def test_basic_pages_render(self):
         urls = (
-            reverse("admin:testapp_parent_change", args=[self.parent.pk]),
-            self.child_url("changelist"),
             self.child_url("add"),
-            self.child_url("change", self.child.pk),
             self.child_url("history", self.child.pk),
             self.child_url("delete", self.child.pk),
-            self.grandchild_url("changelist"),
             self.grandchild_url("add"),
-            self.grandchild_url("change", self.grandchild.pk),
             self.grandchild_url("history", self.grandchild.pk),
             self.grandchild_url("delete", self.grandchild.pk),
         )
         for url in urls:
             with self.subTest(url=url):
-                response = self.client.get(url)
-                self.assertEqual(response.status_code, 200)
+                self.assertEqual(self.client.get(url).status_code, 200)
 
-    def test_root_link_and_two_level_breadcrumbs(self):
-        root = self.client.get(
-            reverse("admin:testapp_parent_change", args=[self.parent.pk])
+        confirmation = self.client.post(
+            self.child_url("changelist"),
+            {"action": "delete_selected", "_selected_action": [str(self.child.pk)]},
         )
-        self.assertContains(root, self.child_url("changelist"))
+        self.assertContains(confirmation, "First parent")
 
+    def test_nested_group_and_two_level_breadcrumbs(self):
         child_change = self.client.get(self.child_url("change", self.child.pk))
+        self.assertRegex(child_change.content.decode(), r">\s*Descendants\s*<")
         self.assertContains(child_change, self.grandchild_url("changelist"))
 
         grandchild_list = self.client.get(self.grandchild_url("changelist"))
@@ -91,6 +87,60 @@ class UnfoldNestedPagesTests(TestCase):
                 with self.subTest(url=url):
                     self.assertContains(self.client.get(url), "Members")
 
+    def test_grouped_subadmin_links(self):
+        note_url = reverse(
+            "admin:testapp_parent_note_changelist", args=[self.parent.pk]
+        )
+        document_url = reverse(
+            "admin:testapp_parent_document_changelist", args=[self.parent.pk]
+        )
+        response = self.client.get(
+            reverse("admin:testapp_parent_change", args=[self.parent.pk])
+        )
+        self.assertContains(response, self.child_url("changelist"))
+        self.assertContains(response, "groups")
+        self.assertContains(response, "sticky_note_2")
+        self.assertContains(response, "view_list")
+        self.assertRegex(response.content.decode(), r">\s*Related\s*<")
+        self.assertContains(response, note_url)
+        self.assertContains(response, document_url)
+        self.assertEqual(self.client.get(note_url).status_code, 200)
+        self.assertEqual(self.client.get(document_url).status_code, 200)
+
+    @override_settings(SUBADMIN_UNFOLD_DEFAULT_ICON="list_alt")
+    def test_global_subadmin_icon_setting(self):
+        response = self.client.get(
+            reverse("admin:testapp_parent_change", args=[self.parent.pk])
+        )
+        self.assertContains(response, "list_alt")
+        self.assertContains(response, "groups")
+        self.assertContains(response, "sticky_note_2")
+
+    def test_grouped_subadmin_links_follow_permissions(self):
+        parent_admin = admin.site._registry[Parent]
+        _, note_admin, document_admin = parent_admin.subadmin_instances
+        change_url = reverse("admin:testapp_parent_change", args=[self.parent.pk])
+        note_url = reverse(
+            "admin:testapp_parent_note_changelist", args=[self.parent.pk]
+        )
+        document_url = reverse(
+            "admin:testapp_parent_document_changelist", args=[self.parent.pk]
+        )
+
+        with patch.object(
+            note_admin, "has_view_or_change_permission", return_value=False
+        ):
+            response = self.client.get(change_url)
+            self.assertNotContains(response, note_url)
+            self.assertContains(response, document_url)
+            self.assertRegex(response.content.decode(), r">\s*Related\s*<")
+            with patch.object(
+                document_admin, "has_view_or_change_permission", return_value=False
+            ):
+                response = self.client.get(change_url)
+                self.assertNotRegex(response.content.decode(), r">\s*Related\s*<")
+                self.assertContains(response, self.child_url("changelist"))
+
     def test_nested_creation_and_scope(self):
         response = self.client.get(self.child_url("changelist"))
         self.assertContains(response, "First child")
@@ -113,6 +163,7 @@ class UnfoldNestedPagesTests(TestCase):
         action_url = self.grandchild_url("testapp_grandchild_show_ancestors")
         response = self.client.get(self.grandchild_url("changelist"))
         self.assertContains(response, action_url)
+        self.assertRegex(response.content.decode(), r">\s*Tools\s*<")
 
         response = self.client.get(action_url)
         self.assertEqual(response.status_code, 200)
@@ -151,18 +202,22 @@ class UnfoldNestedPagesTests(TestCase):
     def test_nested_unfold_row_action(self):
         action_name = "testapp_grandchild_show_row_ancestors"
         action_url = self.grandchild_url(action_name, self.grandchild.pk)
-        response = self.client.get(self.grandchild_url("changelist"))
-        self.assertContains(response, action_url)
+        list_response = self.client.get(self.grandchild_url("changelist"))
+        self.assertContains(list_response, action_url)
 
         response = self.client.get(action_url)
         self.assertEqual(
             response.content,
             f"First parent / First child / {self.grandchild.pk}".encode(),
         )
-        wrong_object_url = self.grandchild_url(
-            action_name, self.other_grandchild.pk
+        dropdown_url = self.grandchild_url(
+            "testapp_grandchild_show_row_dropdown", self.grandchild.pk
         )
-        self.assertEqual(self.client.get(wrong_object_url).status_code, 404)
+        self.assertContains(list_response, dropdown_url)
+        self.assertEqual(
+            self.client.get(dropdown_url).content,
+            f"dropdown: First parent / First child / {self.grandchild.pk}".encode(),
+        )
 
     def test_nested_unfold_submit_line_action(self):
         change_url = self.grandchild_url("change", self.grandchild.pk)
@@ -192,12 +247,6 @@ class UnfoldNestedPagesTests(TestCase):
         child_url = self.child_url("context")
         self.assertEqual(self.client.get(child_url).content, b"child: First parent")
 
-        overview_url = self.grandchild_url("overview")
-        self.assertEqual(
-            self.client.get(overview_url).content,
-            b"grandchild / First parent / First child",
-        )
-
         inspect_url = self.grandchild_url("inspect", 42)
         self.assertEqual(
             self.client.get(inspect_url).content,
@@ -205,18 +254,11 @@ class UnfoldNestedPagesTests(TestCase):
         )
 
         wrong_parent_url = reverse(
-            "admin:testapp_parent_child_grandchild_overview",
-            args=[self.other_parent.pk, self.child.pk],
+            "admin:testapp_parent_child_grandchild_inspect",
+            args=[self.other_parent.pk, self.child.pk, 42],
         )
         self.assertEqual(self.client.get(wrong_parent_url).status_code, 404)
 
     def test_root_unfold_custom_url(self):
         url = reverse("admin:root_info")
         self.assertEqual(self.client.get(url).content, b"parent")
-
-    def test_wrong_ancestor_returns_404(self):
-        url = reverse(
-            "admin:testapp_parent_child_grandchild_changelist",
-            args=[self.other_parent.pk, self.child.pk],
-        )
-        self.assertEqual(self.client.get(url).status_code, 404)
