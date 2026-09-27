@@ -170,6 +170,32 @@ class UnfoldNestedPagesTests(TestCase):
             self.client.get(action_url).content, str(self.parent.pk).encode()
         )
 
+    def test_nested_unfold_custom_urls(self):
+        child_url = self.child_url("context")
+        self.assertEqual(self.client.get(child_url).content, b"child: First parent")
+
+        overview_url = self.grandchild_url("overview")
+        self.assertEqual(
+            self.client.get(overview_url).content,
+            b"grandchild / First parent / First child",
+        )
+
+        inspect_url = self.grandchild_url("inspect", 42)
+        self.assertEqual(
+            self.client.get(inspect_url).content,
+            b"grandchild / First parent / First child / 42:int",
+        )
+
+        wrong_parent_url = reverse(
+            "admin:testapp_parent_child_grandchild_overview",
+            args=[self.other_parent.pk, self.child.pk],
+        )
+        self.assertEqual(self.client.get(wrong_parent_url).status_code, 404)
+
+    def test_root_unfold_custom_url(self):
+        url = reverse("admin:root_info")
+        self.assertEqual(self.client.get(url).content, b"parent")
+
     def test_wrong_ancestor_returns_404(self):
         url = reverse(
             "admin:testapp_parent_child_grandchild_changelist",

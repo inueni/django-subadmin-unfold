@@ -120,3 +120,36 @@ class UnfoldSubAdmin(SubAdminMixin, ModelAdmin):
 
 class UnfoldRootSubAdmin(RootSubAdminMixin, ModelAdmin):
     change_form_template = "subadmin_unfold/parent_change_form.html"
+
+    def get_urls(self):
+        custom_urls = []
+
+        def wrap(sub_admin, view, parent_keys):
+            def custom_view(request, **kwargs):
+                parent_ids = tuple(kwargs.pop(key) for key in parent_keys)
+                request.subadmin = sub_admin.get_subadmin_helper(request, parent_ids)
+                return view(request, model_admin=sub_admin, **kwargs)
+
+            wrapped = sub_admin.admin_site.admin_view(custom_view)
+            wrapped.model_admin = sub_admin
+            return update_wrapper(wrapped, view)
+
+        def collect(parent_admin, prefix="", parent_keys=()):
+            for sub_admin in parent_admin.subadmin_instances:
+                parent_key = f"subadmin_parent_{len(parent_keys)}"
+                child_prefix = (
+                    f"{prefix}<path:{parent_key}>/{sub_admin.model._meta.model_name}/"
+                )
+                child_parent_keys = (*parent_keys, parent_key)
+                for custom_path, name, view in sub_admin.get_custom_urls():
+                    custom_urls.append(
+                        path(
+                            f"{child_prefix}{custom_path}",
+                            wrap(sub_admin, view, child_parent_keys),
+                            name=f"{sub_admin.get_base_viewname()}_{name}",
+                        )
+                    )
+                collect(sub_admin, child_prefix, child_parent_keys)
+
+        collect(self)
+        return custom_urls + super().get_urls()

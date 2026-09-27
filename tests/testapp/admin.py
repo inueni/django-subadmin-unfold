@@ -14,6 +14,28 @@ class GrandchildAdmin(UnfoldSubAdmin):
     actions_row = ("show_row_ancestors",)
     actions_submit_line = ("mark_reviewed",)
 
+    def get_custom_urls(self):
+        return (
+            ("overview/", "overview", self.overview),
+            ("<int:item_id>/inspect/", "inspect", self.inspect),
+        )
+
+    def overview(self, request, model_admin):
+        names = [str(parent["object"]) for parent in reversed(request.subadmin.parents)]
+        return HttpResponse(" / ".join((model_admin.model._meta.model_name, *names)))
+
+    def inspect(self, request, model_admin, item_id):
+        names = [str(parent["object"]) for parent in reversed(request.subadmin.parents)]
+        return HttpResponse(
+            " / ".join(
+                (
+                    model_admin.model._meta.model_name,
+                    *names,
+                    f"{item_id}:{type(item_id).__name__}",
+                )
+            )
+        )
+
     @action(description="Show ancestors", icon="account_tree")
     def show_ancestors(self, request):
         names = [str(parent["object"]) for parent in reversed(request.subadmin.parents)]
@@ -33,7 +55,6 @@ class GrandchildAdmin(UnfoldSubAdmin):
         names = [str(parent["object"]) for parent in reversed(request.subadmin.parents)]
         return HttpResponse(" / ".join((*names, object_id)))
 
-
     @action(description="Mark reviewed", icon="check")
     def mark_reviewed(self, request, obj):
         obj.name = f"Reviewed {obj.name}"
@@ -44,12 +65,25 @@ class ChildAdmin(UnfoldSubAdmin):
     model = Child
     subadmins = (GrandchildAdmin,)
 
+    def get_custom_urls(self):
+        return (("context/", "context", self.context),)
+
+    def context(self, request, model_admin):
+        return HttpResponse(
+            f"{model_admin.model._meta.model_name}: {request.subadmin.parent_instance}"
+        )
 
 
 @admin.register(Parent)
 class ParentAdmin(UnfoldRootSubAdmin):
     subadmins = (ChildAdmin,)
     actions_row = ("show_parent_row",)
+
+    def get_custom_urls(self):
+        return (("root-info/", "root_info", self.root_info),)
+
+    def root_info(self, request, model_admin):
+        return HttpResponse(model_admin.model._meta.model_name)
 
     @action(description="Show parent row", icon="account_tree")
     def show_parent_row(self, request, object_id):

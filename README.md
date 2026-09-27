@@ -19,3 +19,8 @@ The adapter must appear before Unfold so its row-action template is selected.
 
 Use UnfoldRootSubAdmin for the registered parent admin and UnfoldSubAdmin
 for each nested admin, importing both from subadmin_unfold.admin.
+
+Nested admins can define Unfold's get_custom_urls(). Their views receive
+model_admin and request.subadmin. Reverse a nested custom URL with
+model_admin.reverse_url(name, *parent_ids, *custom_args); its URL name is
+prefixed with the nested admin's base view name.
