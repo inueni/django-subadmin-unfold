@@ -91,6 +91,85 @@ class UnfoldNestedPagesTests(TestCase):
             Grandchild.objects.filter(child=self.child, name="New grandchild").exists()
         )
 
+    def test_nested_unfold_list_action(self):
+        action_url = self.grandchild_url("testapp_grandchild_show_ancestors")
+        response = self.client.get(self.grandchild_url("changelist"))
+        self.assertContains(response, action_url)
+
+        response = self.client.get(action_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"First parent / First child")
+
+        wrong_parent_url = reverse(
+            "admin:testapp_parent_child_grandchild_testapp_grandchild_show_ancestors",
+            args=[self.other_parent.pk, self.child.pk],
+        )
+        self.assertEqual(self.client.get(wrong_parent_url).status_code, 404)
+
+    def test_nested_unfold_detail_action(self):
+        action_name = "testapp_grandchild_show_detail_ancestors"
+        action_url = self.grandchild_url(action_name, self.grandchild.pk)
+        response = self.client.get(self.grandchild_url("change", self.grandchild.pk))
+        self.assertContains(response, action_url)
+
+        response = self.client.get(action_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.content,
+            f"First parent / First child / {self.grandchild.pk}".encode(),
+        )
+
+        wrong_parent_url = reverse(
+            f"admin:testapp_parent_child_grandchild_{action_name}",
+            args=[self.other_parent.pk, self.child.pk, self.grandchild.pk],
+        )
+        self.assertEqual(self.client.get(wrong_parent_url).status_code, 404)
+
+        wrong_object_url = self.grandchild_url(
+            action_name, self.other_grandchild.pk
+        )
+        self.assertEqual(self.client.get(wrong_object_url).status_code, 404)
+
+    def test_nested_unfold_row_action(self):
+        action_name = "testapp_grandchild_show_row_ancestors"
+        action_url = self.grandchild_url(action_name, self.grandchild.pk)
+        response = self.client.get(self.grandchild_url("changelist"))
+        self.assertContains(response, action_url)
+
+        response = self.client.get(action_url)
+        self.assertEqual(
+            response.content,
+            f"First parent / First child / {self.grandchild.pk}".encode(),
+        )
+        wrong_object_url = self.grandchild_url(
+            action_name, self.other_grandchild.pk
+        )
+        self.assertEqual(self.client.get(wrong_object_url).status_code, 404)
+
+    def test_nested_unfold_submit_line_action(self):
+        change_url = self.grandchild_url("change", self.grandchild.pk)
+        action_name = "testapp_grandchild_mark_reviewed"
+        response = self.client.get(change_url)
+        self.assertContains(response, f'name="{action_name}"')
+
+        response = self.client.post(
+            change_url,
+            {"name": "Renamed grandchild", action_name: "1"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.grandchild.refresh_from_db()
+        self.assertEqual(self.grandchild.name, "Reviewed Renamed grandchild")
+
+    def test_root_unfold_row_action(self):
+        action_url = reverse(
+            "admin:testapp_parent_show_parent_row", args=[self.parent.pk]
+        )
+        response = self.client.get(reverse("admin:testapp_parent_changelist"))
+        self.assertContains(response, action_url)
+        self.assertEqual(
+            self.client.get(action_url).content, str(self.parent.pk).encode()
+        )
+
     def test_wrong_ancestor_returns_404(self):
         url = reverse(
             "admin:testapp_parent_child_grandchild_changelist",

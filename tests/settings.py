@@ -8,8 +8,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
 ]
 INSTALLED_APPS = [
-    "unfold",
     "subadmin_unfold",
+    "unfold",
     "subadmin",
     "django.contrib.admin",
     "django.contrib.auth",
