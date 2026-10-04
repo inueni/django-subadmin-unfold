@@ -2,10 +2,19 @@ from unittest.mock import patch
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from unfold.admin import TabularInline
 
-from .testapp.models import Child, Grandchild, Parent
+from .testapp.models import Child, Document, Grandchild, Parent
+
+
+class GrandchildInline(TabularInline):
+    model = Grandchild
+    tab = True
+    extra = 0
 
 
 class UnfoldNestedPagesTests(TestCase):
@@ -117,8 +126,17 @@ class UnfoldNestedPagesTests(TestCase):
         self.assertContains(response, "sticky_note_2")
 
     def test_grouped_subadmin_links_follow_permissions(self):
-        parent_admin = admin.site._registry[Parent]
-        _, note_admin, document_admin = parent_admin.subadmin_instances
+        viewer = get_user_model().objects.create_user("viewer", is_staff=True)
+        for model in (Parent, Child, Document):
+            content_type = ContentType.objects.get_for_model(model)
+            viewer.user_permissions.add(
+                Permission.objects.get(
+                    content_type=content_type,
+                    codename=f"view_{model._meta.model_name}",
+                )
+            )
+        self.client.force_login(viewer)
+
         change_url = reverse("admin:testapp_parent_change", args=[self.parent.pk])
         note_url = reverse(
             "admin:testapp_parent_note_changelist", args=[self.parent.pk]
@@ -127,19 +145,23 @@ class UnfoldNestedPagesTests(TestCase):
             "admin:testapp_parent_document_changelist", args=[self.parent.pk]
         )
 
-        with patch.object(
-            note_admin, "has_view_or_change_permission", return_value=False
-        ):
-            response = self.client.get(change_url)
-            self.assertNotContains(response, note_url)
-            self.assertContains(response, document_url)
-            self.assertRegex(response.content.decode(), r">\s*Related\s*<")
-            with patch.object(
-                document_admin, "has_view_or_change_permission", return_value=False
-            ):
-                response = self.client.get(change_url)
-                self.assertNotRegex(response.content.decode(), r">\s*Related\s*<")
-                self.assertContains(response, self.child_url("changelist"))
+        response = self.client.get(change_url)
+        self.assertContains(response, self.child_url("changelist"))
+        self.assertNotContains(response, note_url)
+        self.assertContains(response, document_url)
+        self.assertRegex(response.content.decode(), r">\s*Related\s*<")
+        self.assertEqual(self.client.get(self.child_url("changelist")).status_code, 200)
+        self.assertEqual(self.client.get(note_url).status_code, 403)
+
+        document_type = ContentType.objects.get_for_model(Document)
+        viewer.user_permissions.remove(
+            Permission.objects.get(
+                content_type=document_type, codename="view_document"
+            )
+        )
+        response = self.client.get(change_url)
+        self.assertNotContains(response, document_url)
+        self.assertNotRegex(response.content.decode(), r">\s*Related\s*<")
 
     def test_nested_creation_and_scope(self):
         response = self.client.get(self.child_url("changelist"))
@@ -157,6 +179,38 @@ class UnfoldNestedPagesTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(
             Grandchild.objects.filter(child=self.child, name="New grandchild").exists()
+        )
+
+    def test_unfold_inline_tab_saves_on_nested_change_form(self):
+        child_admin = admin.site._registry[Parent].subadmin_instances[0]
+        with patch.object(child_admin, "inlines", (GrandchildInline,)):
+            change_url = self.child_url("change", self.child.pk)
+            response = self.client.get(change_url)
+            self.assertContains(response, "Grandchildren")
+            prefix = response.context["inline_admin_formsets"][0].formset.prefix
+
+            response = self.client.post(
+                change_url,
+                {
+                    "name": self.child.name,
+                    f"{prefix}-TOTAL_FORMS": "2",
+                    f"{prefix}-INITIAL_FORMS": "1",
+                    f"{prefix}-MIN_NUM_FORMS": "0",
+                    f"{prefix}-MAX_NUM_FORMS": "1000",
+                    f"{prefix}-0-id": str(self.grandchild.pk),
+                    f"{prefix}-0-child": str(self.child.pk),
+                    f"{prefix}-0-name": self.grandchild.name,
+                    f"{prefix}-1-child": str(self.child.pk),
+                    f"{prefix}-1-name": "Second grandchild",
+                    "_save": "Save",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            Grandchild.objects.filter(
+                child=self.child, name="Second grandchild"
+            ).exists()
         )
 
     def test_nested_unfold_list_action(self):
@@ -217,6 +271,22 @@ class UnfoldNestedPagesTests(TestCase):
         self.assertEqual(
             self.client.get(dropdown_url).content,
             f"dropdown: First parent / First child / {self.grandchild.pk}".encode(),
+        )
+
+    def test_nested_unfold_row_dialog(self):
+        action_url = self.grandchild_url(
+            "testapp_grandchild_confirm_row", self.grandchild.pk
+        )
+        self.assertContains(
+            self.client.get(self.grandchild_url("changelist")),
+            f'hx-get="{action_url}"',
+        )
+        self.assertContains(self.client.get(action_url), "Confirm this action")
+
+        response = self.client.post(action_url, {"_form_submitted": "on"})
+        self.assertEqual(
+            response.content,
+            f"confirmed: First parent / First child / {self.grandchild.pk}".encode(),
         )
 
     def test_nested_unfold_submit_line_action(self):

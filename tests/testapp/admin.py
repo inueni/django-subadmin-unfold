@@ -11,7 +11,7 @@ class GrandchildAdmin(UnfoldSubAdmin):
     model = Grandchild
     actions_list = ({"title": "Tools", "items": ("show_ancestors",)},)
     actions_detail = ("show_detail_ancestors",)
-    actions_row = ("show_row_ancestors", "show_row_dropdown")
+    actions_row = ("show_row_ancestors", "show_row_dropdown", "confirm_row")
     actions_submit_line = ("mark_reviewed",)
 
     def get_custom_urls(self):
@@ -52,6 +52,14 @@ class GrandchildAdmin(UnfoldSubAdmin):
     def show_row_dropdown(self, request, object_id):
         names = [str(parent["object"]) for parent in reversed(request.subadmin.parents)]
         return HttpResponse("dropdown: " + " / ".join((*names, object_id)))
+
+    @action(
+        description="Confirm row",
+        dialog={"title": "Confirm row", "description": "Confirm this action"},
+    )
+    def confirm_row(self, request, form, object_id):
+        names = [str(parent["object"]) for parent in reversed(request.subadmin.parents)]
+        return HttpResponse("confirmed: " + " / ".join((*names, object_id)))
 
     @action(description="Mark reviewed", icon="check")
     def mark_reviewed(self, request, obj):
