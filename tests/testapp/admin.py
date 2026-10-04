@@ -4,7 +4,7 @@ from unfold.decorators import action
 
 from subadmin_unfold.admin import UnfoldRootSubAdmin, UnfoldSubAdmin
 
-from .models import Child, Document, Grandchild, Note, Parent
+from .models import Child, Document, Grandchild, Note, Parent, StringChild, StringParent
 
 
 class GrandchildAdmin(UnfoldSubAdmin):
@@ -109,3 +109,12 @@ class ParentAdmin(UnfoldRootSubAdmin):
     @action(description="Show parent row", icon="account_tree")
     def show_parent_row(self, request, object_id):
         return HttpResponse(object_id)
+
+
+class StringChildAdmin(UnfoldSubAdmin):
+    model = StringChild
+
+
+@admin.register(StringParent)
+class StringParentAdmin(UnfoldRootSubAdmin):
+    subadmins = (StringChildAdmin,)

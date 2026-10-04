@@ -50,3 +50,20 @@ class Document(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class StringParent(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+
+class StringChild(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    parent = models.ForeignKey(StringParent, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
