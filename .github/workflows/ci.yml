@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.label }} / Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Django 5.2 / Unfold latest
+            python: "3.12"
+            django_spec: "Django==5.2.*"
+            unfold_spec: "django-unfold>=0.102"
+          - label: Django 5.2 / Unfold latest
+            python: "3.14"
+            django_spec: "Django==5.2.*"
+            unfold_spec: "django-unfold>=0.102"
+          - label: Django 6.0 / Unfold latest
+            python: "3.12"
+            django_spec: "Django==6.0.*"
+            unfold_spec: "django-unfold>=0.102"
+          - label: Django 6.0 / Unfold latest
+            python: "3.14"
+            django_spec: "Django==6.0.*"
+            unfold_spec: "django-unfold>=0.102"
+          - label: Django 6.1.0 / Unfold 0.102.0
+            python: "3.12"
+            django_spec: "Django==6.1.0"
+            unfold_spec: "django-unfold==0.102.0"
+          - label: Django latest / Unfold latest
+            python: "3.12"
+            django_spec: "Django>=6.1"
+            unfold_spec: "django-unfold>=0.102"
+          - label: Django latest / Unfold latest
+            python: "3.14"
+            django_spec: "Django>=6.1"
+            unfold_spec: "django-unfold>=0.102"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install adapter and dependencies
+        env:
+          DJANGO_SPEC: ${{ matrix.django_spec }}
+          UNFOLD_SPEC: ${{ matrix.unfold_spec }}
+        run: python -m pip install -e . "$DJANGO_SPEC" "$UNFOLD_SPEC"
+      - name: Run integration tests
+        run: python -m django test tests --settings=tests.settings
+
+  passed:
+    name: CI passed
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every test job to pass
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+        run: test "$TEST_RESULT" = success

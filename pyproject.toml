@@ -4,20 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-subadmin-unfold"
-version = "0.1.0"
+version = "1.0.0"
 description = "Django Unfold integration for django-subadmin"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
-    "Django>=5.2,<6.1",
-    "django-subadmin>=5.2,<6.1",
-    "django-unfold>=0.108,<0.109",
+    "Django>=5.2",
+    "django-subadmin>=5.2",
+    "django-unfold>=0.102",
 ]
 classifiers = [
     "Framework :: Django :: 5.2",
     "Framework :: Django :: 6.0",
+    "Framework :: Django :: 6.1",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
