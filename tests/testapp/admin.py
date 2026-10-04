@@ -113,6 +113,11 @@ class ParentAdmin(UnfoldRootSubAdmin):
 
 class StringChildAdmin(UnfoldSubAdmin):
     model = StringChild
+    actions_row = ("show_id",)
+
+    @action(description="Show ID")
+    def show_id(self, request, object_id):
+        return HttpResponse(object_id)
 
 
 @admin.register(StringParent)

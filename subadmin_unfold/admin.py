@@ -2,6 +2,7 @@ import re
 from functools import update_wrapper
 
 from django.conf import settings
+from django.contrib.admin.utils import unquote
 from django.core.exceptions import ImproperlyConfigured
 from django.http import Http404
 from django.urls import path, re_path
@@ -51,7 +52,7 @@ class UnfoldSubAdmin(UnfoldSubAdminMixin, SubAdminMixin, ModelAdmin):
                     request, view_args, object_id=object_id
                 )
                 if detail:
-                    if self.get_object(request, object_id) is None:
+                    if self.get_object(request, unquote(object_id)) is None:
                         raise Http404
                     return action.method(request, object_id=object_id)
                 return action.method(request)

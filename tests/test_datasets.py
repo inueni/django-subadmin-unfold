@@ -142,3 +142,15 @@ class SubAdminDatasetTests(TestCase):
                 reverse("admin:testapp_stringparent_change", args=[parent_id])
             )
         self.assertContains(parent_change, change_url)
+
+    def test_quoted_ids_in_row_action_links(self):
+        parent_id = quote(self.string_parent.pk)
+        child_id = quote(self.string_child.pk)
+        child_admin = admin.site._registry[StringParent].subadmin_instances[0]
+        action_url = child_admin.reverse_url(
+            "testapp_stringchild_show_id", parent_id, child_id
+        )
+
+        child_list = self.client.get(child_admin.reverse_url("changelist", parent_id))
+        self.assertContains(child_list, action_url)
+        self.assertEqual(self.client.get(action_url).content, child_id.encode())
